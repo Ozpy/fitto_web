@@ -3,13 +3,25 @@
 import { Sidebar } from "@/components/layout/sidebar";
 import { useAppStore } from "@/store/useAppStore";
 import { Button } from "@/components/ui/button";
-import { Menu, Globe } from "lucide-react";
+import { Menu, Globe, LogOut } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { toggleSidebar, language, setLanguage } = useAppStore();
+  const router = useRouter();
 
   const toggleLanguage = () => {
     setLanguage(language === 'es' ? 'en' : 'es');
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await supabase.auth.signOut();
+      router.push("/auth/login");
+    } catch (e) {
+      console.error("Error signing out", e);
+    }
   };
 
   return (
@@ -30,10 +42,21 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               {language}
             </Button>
             
-            {/* User profile dropdown etc could go here */}
-            <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold text-sm cursor-pointer">
+            {/* User profile avatar */}
+            <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm select-none">
               U
             </div>
+
+            {/* Sign Out Button */}
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={handleSignOut} 
+              className="text-xs font-semibold text-destructive hover:text-destructive hover:bg-destructive/10 gap-1.5 px-3 py-1.5 rounded-full"
+            >
+              <LogOut className="h-4 w-4" />
+              <span className="hidden sm:inline">Cerrar Sesión</span>
+            </Button>
           </div>
         </header>
         <div className="p-4 lg:p-8">

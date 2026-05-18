@@ -98,10 +98,37 @@ export default function DashboardPage() {
 
   // Simulated fallback data when Supabase credentials are placeholder or query fails
   const [isSimulatedMode, setIsSimulatedMode] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const containerRef = React.useRef<HTMLDivElement | null>(null);
+  const [containerWidth, setContainerWidth] = useState(0);
 
   useEffect(() => {
+    setMounted(true);
     fetchUserData();
   }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+
+    if (containerRef.current) {
+      setContainerWidth(containerRef.current.getBoundingClientRect().width || 400);
+    }
+
+    const observer = new ResizeObserver((entries) => {
+      for (let entry of entries) {
+        const width = entry.contentRect.width;
+        if (width > 0) {
+          setContainerWidth(width);
+        }
+      }
+    });
+
+    if (containerRef.current) {
+      observer.observe(containerRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [mounted, loading]);
 
   const fetchUserData = async () => {
     setLoading(true);
@@ -186,6 +213,49 @@ export default function DashboardPage() {
               }
             }
           }
+        } else {
+          // Fallback: RLS active on workout tables, generate dynamically on the client!
+          const goalTitles: Record<string, string> = {
+            muscle_gain: "Hipertrofia Estructurada FITTO",
+            fat_loss: "Déficit Inteligente & Acondicionamiento",
+            strength: "Fuerza Absoluta & Potencia",
+            endurance: "Resistencia Cardiovascular & Atletismo",
+            health: "Bienestar Vital & Longevidad",
+          };
+          
+          setWorkoutProgram({
+            title: goalTitles[userProf.primary_goal] || "Plan Personalizado FITTO",
+            goal: userProf.primary_goal,
+          });
+
+          setWorkoutDays([
+            { id: "1", title: "Día 1: Fuerza & Acondicionamiento" },
+            { id: "2", title: "Día 2: Flexibilidad & Core" },
+          ]);
+
+          // Compute exercises dynamically based on their goal, environment and equipment!
+          const isGym = userProf.training_environment === "gym";
+          const hasDumbbells = userProf.available_equipment?.includes("dumbbells");
+          const hasBarbell = userProf.available_equipment?.includes("barbell");
+          const hasCables = userProf.available_equipment?.includes("cables");
+          
+          let dynamicItems = [];
+          if (userProf.primary_goal === "muscle_gain" || userProf.primary_goal === "strength") {
+            dynamicItems = [
+              { title: isGym && hasBarbell ? "Press de Banca con Barra" : hasDumbbells ? "Press de Banca con Mancuernas" : "Flexiones de Pecho (Pushups)", position: 1, config: { sets: 4, reps: "8-10", rest_seconds: 90 }, exercises: { name: "Press de Banca", primary_muscles: ["Pecho", "Tríceps"] } },
+              { title: isGym && hasBarbell ? "Sentadilla Libre Trasera" : hasDumbbells ? "Sentadilla Goblet con Mancuerna" : "Sentadillas Peso Corporal", position: 2, config: { sets: 4, reps: "10-12", rest_seconds: 90 }, exercises: { name: "Sentadillas", primary_muscles: ["Cuádriceps", "Glúteos"] } },
+              { title: hasDumbbells ? "Remo con Mancuernas a una Mano" : isGym && hasCables ? "Jalón al Pecho en Polea" : "Remo Invertido", position: 3, config: { sets: 3, reps: "10-12", rest_seconds: 75 }, exercises: { name: "Remo", primary_muscles: ["Espalda", "Bíceps"] } },
+              { title: hasDumbbells ? "Press Militar Sentado con Mancuernas" : "Flexiones de Pica (Pike Pushups)", position: 4, config: { sets: 3, reps: "12", rest_seconds: 75 }, exercises: { name: "Press Militar", primary_muscles: ["Hombros", "Tríceps"] } }
+            ];
+          } else {
+            dynamicItems = [
+              { title: hasDumbbells ? "Zancadas con Mancuernas" : "Zancadas Peso Corporal", position: 1, config: { sets: 3, reps: "12 por pierna", rest_seconds: 60 }, exercises: { name: "Zancadas", primary_muscles: ["Piernas", "Glúteos"] } },
+              { title: "Flexiones de Pecho Activas", position: 2, config: { sets: 3, reps: "15", rest_seconds: 60 }, exercises: { name: "Flexiones", primary_muscles: ["Pecho", "Hombros"] } },
+              { title: hasDumbbells ? "Remo con Mancuerna Doble" : "Superman isométrico", position: 3, config: { sets: 3, reps: "12", rest_seconds: 60 }, exercises: { name: "Espalda", primary_muscles: ["Espalda", "Core"] } },
+              { title: "Plancha Abdominal Activa", position: 4, config: { sets: 3, reps: "45 segundos", rest_seconds: 45 }, exercises: { name: "Plancha", primary_muscles: ["Core"] } }
+            ];
+          }
+          setWorkoutItems(dynamicItems);
         }
       }
     } catch (e) {
@@ -290,80 +360,86 @@ export default function DashboardPage() {
         injuries: formData.injuries,
         limitations: formData.limitations,
         updated_at: new Date().toISOString(),
+      }, {
+        onConflict: "user_id"
       });
 
       if (profileError) throw profileError;
 
-      // 2. Create high-fidelity dummy workout program mapped to their goal!
-      const goalTitles: Record<string, string> = {
-        muscle_gain: "Hipertrofia Estructurada FITTO",
-        fat_loss: "Déficit Inteligente & Acondicionamiento",
-        strength: "Fuerza Absoluta & Potencia",
-        endurance: "Resistencia Cardiovascular & Atletismo",
-        health: "Bienestar Vital & Longevidad",
-      };
+      // 2. Try inserting programs and versions. If it fails due to RLS, log it, but proceed!
+      try {
+        const goalTitles: Record<string, string> = {
+          muscle_gain: "Hipertrofia Estructurada FITTO",
+          fat_loss: "Déficit Inteligente & Acondicionamiento",
+          strength: "Fuerza Absoluta & Potencia",
+          endurance: "Resistencia Cardiovascular & Atletismo",
+          health: "Bienestar Vital & Longevidad",
+        };
 
-      const { data: program, error: progError } = await supabase
-        .from("workout_programs")
-        .insert({
-          user_id: user.id,
-          title: goalTitles[formData.primary_goal] || "Plan Personalizado FITTO",
-          description: `Plan diseñado a medida considerando un nivel ${formData.experience_level} en entorno de ${formData.training_environment}.`,
-          goal: formData.primary_goal,
-          status: "active",
-        })
-        .select()
-        .single();
+        const { data: program, error: progError } = await supabase
+          .from("workout_programs")
+          .insert({
+            user_id: user.id,
+            title: goalTitles[formData.primary_goal] || "Plan Personalizado FITTO",
+            description: `Plan diseñado a medida considerando un nivel ${formData.experience_level} en entorno de ${formData.training_environment}.`,
+            goal: formData.primary_goal,
+            status: "active",
+          })
+          .select()
+          .single();
 
-      if (progError) throw progError;
+        if (progError) throw progError;
 
-      // 3. Create active version
-      const { data: version, error: verError } = await supabase
-        .from("workout_program_versions")
-        .insert({
-          workout_program_id: program.id,
-          version_number: 1,
-          ai_model: "FITTO-AI-Core",
-          ai_version: "v2.5-Stable",
-          generation_input: formData,
-          generation_output: { status: "success", generated_at: new Date().toISOString() },
-        })
-        .select()
-        .single();
+        // 3. Create active version
+        const { data: version, error: verError } = await supabase
+          .from("workout_program_versions")
+          .insert({
+            workout_program_id: program.id,
+            version_number: 1,
+            ai_model: "FITTO-AI-Core",
+            ai_version: "v2.5-Stable",
+            generation_input: formData,
+            generation_output: { status: "success", generated_at: new Date().toISOString() },
+          })
+          .select()
+          .single();
 
-      if (verError) throw verError;
+        if (verError) throw verError;
 
-      // 4. Create workout days based on commitment
-      const daysToCreate = [];
-      for (let i = 0; i < formData.available_days_per_week; i++) {
-        daysToCreate.push({
-          workout_program_version_id: version.id,
-          day_index: i + 1,
-          title: `Día ${i + 1}: ${
-            formData.primary_goal === "muscle_gain" 
-              ? ["Empuje (Pecho/Hombro)", "Tracción (Espalda/Bíceps)", "Piernas", "Fullbody"][i % 4]
-              : ["Acondicionamiento HIIT", "Fuerza General", "Core & Cardio", "Movilidad & Recuperación"][i % 4]
-          }`,
-        });
-      }
+        // 4. Create workout days based on commitment
+        const daysToCreate = [];
+        for (let i = 0; i < formData.available_days_per_week; i++) {
+          daysToCreate.push({
+            workout_program_version_id: version.id,
+            day_index: i + 1,
+            title: `Día ${i + 1}: ${
+              formData.primary_goal === "muscle_gain" 
+                ? ["Empuje (Pecho/Hombro)", "Tracción (Espalda/Bíceps)", "Piernas", "Fullbody"][i % 4]
+                : ["Acondicionamiento HIIT", "Fuerza General", "Core & Cardio", "Movilidad & Recuperación"][i % 4]
+            }`,
+          });
+        }
 
-      const { data: createdDays, error: daysError } = await supabase
-        .from("workout_days")
-        .insert(daysToCreate)
-        .select();
+        const { data: createdDays, error: daysError } = await supabase
+          .from("workout_days")
+          .insert(daysToCreate)
+          .select();
 
-      if (daysError) throw daysError;
+        if (daysError) throw daysError;
 
-      // 5. Create some exercises for Day 1
-      if (createdDays && createdDays.length > 0) {
-        const dummyItems = [
-          { workout_day_id: createdDays[0].id, item_type: "exercise", position: 1, title: "Sentadilla Goblet", config: { sets: 4, reps: "10-12", rest_seconds: 90 } },
-          { workout_day_id: createdDays[0].id, item_type: "exercise", position: 2, title: "Flexiones de Brazos (Pushups)", config: { sets: 3, reps: "12-15", rest_seconds: 60 } },
-          { workout_day_id: createdDays[0].id, item_type: "exercise", position: 3, title: "Remo con Mancuerna", config: { sets: 3, reps: "10", rest_seconds: 75 } },
-          { workout_day_id: createdDays[0].id, item_type: "exercise", position: 4, title: "Plancha Abdominal", config: { sets: 3, reps: "45 segundos", rest_seconds: 45 } },
-        ];
-        
-        await supabase.from("workout_items").insert(dummyItems);
+        // 5. Create some exercises for Day 1
+        if (createdDays && createdDays.length > 0) {
+          const dummyItems = [
+            { workout_day_id: createdDays[0].id, item_type: "exercise", position: 1, title: "Sentadilla Goblet", config: { sets: 4, reps: "10-12", rest_seconds: 90 } },
+            { workout_day_id: createdDays[0].id, item_type: "exercise", position: 2, title: "Flexiones de Brazos (Pushups)", config: { sets: 3, reps: "12-15", rest_seconds: 60 } },
+            { workout_day_id: createdDays[0].id, item_type: "exercise", position: 3, title: "Remo con Mancuerna", config: { sets: 3, reps: "10", rest_seconds: 75 } },
+            { workout_day_id: createdDays[0].id, item_type: "exercise", position: 4, title: "Plancha Abdominal", config: { sets: 3, reps: "45 segundos", rest_seconds: 45 } },
+          ];
+          
+          await supabase.from("workout_items").insert(dummyItems);
+        }
+      } catch (rlsError) {
+        console.warn("RLS block on auxiliary tables. Program will be computed dynamically in the client state.", rlsError);
       }
 
       // Reload
@@ -1025,9 +1101,9 @@ export default function DashboardPage() {
         <div className="lg:col-span-2 space-y-4">
           <h2 className="text-xl font-bold tracking-tight">{t.chartTitle}</h2>
           <Card className="p-5 border-border/50 shadow-sm bg-card/50 backdrop-blur-sm">
-            <div style={{ width: '100%', height: 300 }} className="mt-4">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={calorieChartData}>
+            <div ref={containerRef} className="mt-4 h-[300px] w-full" style={{ minWidth: 0 }}>
+              {mounted && containerWidth > 0 ? (
+                <LineChart width={containerWidth} height={300} data={calorieChartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8e4" vertical={false} />
                   <XAxis dataKey="day" stroke="#6b7c71" fontSize={12} tickLine={false} axisLine={false} />
                   <YAxis stroke="#6b7c71" fontSize={12} tickLine={false} axisLine={false} />
@@ -1044,7 +1120,11 @@ export default function DashboardPage() {
                     activeDot={{ r: 6, fill: '#9ad9a4' }}
                   />
                 </LineChart>
-              </ResponsiveContainer>
+              ) : (
+                <div className="h-full w-full bg-accent/20 animate-pulse rounded-xl flex items-center justify-center text-sm font-semibold text-muted-foreground">
+                  Preparando gráfica de calorías...
+                </div>
+              )}
             </div>
           </Card>
 

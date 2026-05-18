@@ -10,7 +10,7 @@ import { supabase } from "@/lib/supabase";
 import { useAppStore } from "@/store/useAppStore";
 import { translations } from "@/lib/i18n/translations";
 import { Button } from "@/components/ui/button";
-import { Globe, Mail, Lock, AlertCircle, CheckCircle2, ChevronRight } from "lucide-react";
+import { Globe, Mail, Lock, AlertCircle, CheckCircle2, ChevronRight, ArrowLeft } from "lucide-react";
 
 // Form schemas
 const loginSchema = z.object({
@@ -69,8 +69,8 @@ export default function LoginPage() {
       } else {
         setSuccessMsg(t.successSignIn);
         setTimeout(() => {
-          router.push("/app/dashboard");
-        }, 1500);
+          window.location.href = "/app/dashboard";
+        }, 1200);
       }
     } catch (err) {
       setErrorMsg(t.errorAuthFailed);
@@ -122,6 +122,14 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col md:flex-row relative overflow-hidden selection:bg-primary/20">
       
+      {/* Back to Home Button */}
+      <div className="absolute top-6 left-6 z-50">
+        <Button variant="ghost" size="sm" onClick={() => router.push("/")} className="hover:bg-accent/40 rounded-full text-xs font-semibold px-4 gap-1.5">
+          <ArrowLeft className="h-3.5 w-3.5 text-muted-foreground" />
+          <span>Volver al inicio</span>
+        </Button>
+      </div>
+
       {/* Floating Language Switcher */}
       <div className="absolute top-6 right-6 z-50">
         <Button variant="outline" size="sm" onClick={toggleLanguage} className="bg-card/50 backdrop-blur-md border-border/60 hover:bg-card rounded-full text-xs font-semibold px-4">
