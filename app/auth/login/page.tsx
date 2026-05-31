@@ -84,9 +84,19 @@ export default function LoginPage() {
     setErrorMsg(null);
     setSuccessMsg(null);
     try {
+      // Self-healing: generate unique username metadata to satisfy profiles database triggers
+      const emailPrefix = data.email.split('@')[0]
+      const uniqueUsername = `${emailPrefix}_${Math.floor(1000 + Math.random() * 9000)}`
+
       const { error } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
+        options: {
+          data: {
+            username: uniqueUsername,
+            full_name: emailPrefix,
+          }
+        }
       });
 
       if (error) {

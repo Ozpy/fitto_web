@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Menu, Globe, LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import Link from "next/link";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { toggleSidebar, language, setLanguage } = useAppStore();
@@ -18,7 +19,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const handleSignOut = async () => {
     try {
       await supabase.auth.signOut();
-      router.push("/auth/login");
+      window.location.href = "/auth/login";
     } catch (e) {
       console.error("Error signing out", e);
     }
@@ -43,9 +44,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </Button>
             
             {/* User profile avatar */}
-            <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm select-none">
+            <Link 
+              href="/app/profile" 
+              className="h-8 w-8 rounded-full bg-primary/20 hover:bg-primary/30 flex items-center justify-center text-primary font-bold text-sm select-none transition-all active:scale-95 cursor-pointer"
+              title={language === 'es' ? 'Ver mi perfil' : 'View my profile'}
+            >
               U
-            </div>
+            </Link>
 
             {/* Sign Out Button */}
             <Button 

@@ -12,7 +12,8 @@ import {
   Calendar, 
   Bot, 
   Settings,
-  X
+  X,
+  User
 } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,7 @@ export function Sidebar() {
 
   const navItems = [
     { name: t.dashboard, href: "/app/dashboard", icon: LayoutDashboard },
+    { name: language === 'es' ? 'Mi Perfil' : 'My Profile', href: "/app/profile", icon: User },
     { name: t.workouts, href: "/app/workouts", icon: Dumbbell },
     { name: t.nutrition, href: "/app/nutrition", icon: Apple },
     { name: t.habits, href: "/app/habits", icon: Target },

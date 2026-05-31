@@ -5,6 +5,8 @@ import Link from "next/link";
 import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Brain, Activity, Apple, Target, MessageSquare, Sparkles, ChevronDown, CheckCircle2, User, Star } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import { type User as SupabaseUser } from "@supabase/supabase-js";
 
 const fadeUpVariant = {
   hidden: { opacity: 0, y: 30 },
@@ -27,6 +29,16 @@ export default function LandingPage() {
 
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [user, setUser] = useState<SupabaseUser | null>(null);
+  const [loadingUser, setLoadingUser] = useState(true);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUser(user);
+      setLoadingUser(false);
+    });
+  }, []);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -87,12 +99,28 @@ export default function LandingPage() {
           initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5 }}
           className="flex items-center gap-4"
         >
-          <Link href="/auth/login" className="text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors hidden sm:block">
-            Inicia sesión
-          </Link>
-          <Link href="/auth/login" className="inline-flex items-center justify-center whitespace-nowrap text-sm font-semibold rounded-full bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-6 shadow-sm shadow-primary/20 hover:shadow-primary/40 transition-all duration-300 hover:scale-105 active:scale-95">
-            Empieza Gratis
-          </Link>
+          {loadingUser ? (
+            <div className="h-10 w-24 bg-muted/40 animate-pulse rounded-full" />
+          ) : user ? (
+            <>
+              <Link href="/app/dashboard" className="text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors hidden sm:block">
+                Mi Dashboard
+              </Link>
+              <Link href="/app/dashboard" className="inline-flex items-center justify-center whitespace-nowrap text-sm font-semibold rounded-full bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-6 shadow-sm shadow-primary/20 hover:shadow-primary/40 transition-all duration-300 hover:scale-105 active:scale-95 gap-1">
+                <span>Ir a mi plan</span>
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link href="/auth/login" className="text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors hidden sm:block">
+                Inicia sesión
+              </Link>
+              <Link href="/auth/login" className="inline-flex items-center justify-center whitespace-nowrap text-sm font-semibold rounded-full bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-6 shadow-sm shadow-primary/20 hover:shadow-primary/40 transition-all duration-300 hover:scale-105 active:scale-95">
+                Empieza Gratis
+              </Link>
+            </>
+          )}
         </motion.div>
       </nav>
 

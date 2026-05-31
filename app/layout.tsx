@@ -33,6 +33,8 @@ export const metadata: Metadata = {
   },
 };
 
+import { Providers } from "@/components/layout/providers";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -41,7 +43,9 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body className={`${inter.variable} font-sans antialiased bg-background text-foreground`}>
-        {children}
+        <Providers>
+          {children}
+        </Providers>
       </body>
     </html>
   );
